@@ -1,7 +1,7 @@
 module TheSortableTreeController
-  # include TheSortableTreeController::ReversedRebuild
   # include TheSortableTreeController::Rebuild
   # include TheSortableTreeController::ExpandNode
+  # include TheSortableTreeController::ReversedRebuild
   
   module DefineVariablesMethod
     public
@@ -9,7 +9,7 @@ module TheSortableTreeController
       collection = self.class.to_s.split(':').last.sub(/Controller/,'').underscore.downcase                 # 'recipes'
       collection = self.respond_to?(:sortable_collection) ? self.sortable_collection : collection           # 'recipes'
       variable   = collection.singularize                                                                   # 'recipe'
-      klass      = self.respond_to?(:sortable_model) ? self.sortable_model : variable.classify.constantize  # Recipe
+      klass      = self.respond_to?(:sortable_model, true) ? self.sortable_model : variable.classify.constantize  # Recipe
       ["@#{variable}", collection, klass]
     end
   end
@@ -18,15 +18,16 @@ module TheSortableTreeController
   module ExpandNode
     include DefineVariablesMethod
     def expand_node
-      id = params[:id].to_i
-      render :text => "Do nothing" and return unless id
+      id   = params[:id].to_i
+      return render(nothing: true) unless id
+      sort = (params[:tree_sort] == 'reversed') ? 'reversed_' : nil
 
       variable, collection, klass = self.the_define_common_variables
-      variable = self.instance_variable_set(variable, klass.find(id))
-      @children = variable.children
+      variable  = self.instance_variable_set(variable, klass.find(id))
+      @children = variable.children.send("#{sort}nested_set")
 
-      render :text => nil and return if @children.count.zero? 
-      render :layout => false, :template => "#{collection}/expand_children"
+      return render(nothing: :true) if @children.count.zero?
+      render layout: false, template: "#{collection}/expand_node"
     end
   end
 
@@ -39,7 +40,7 @@ module TheSortableTreeController
       prev_id   = params[:prev_id].to_i
       next_id   = params[:next_id].to_i
 
-      render :text => "Do nothing" and return if parent_id.zero? && prev_id.zero? && next_id.zero?
+      return render(nothing: true, status: :no_content) if parent_id.zero? && prev_id.zero? && next_id.zero?
 
       variable, collection, klass = self.the_define_common_variables
       variable = self.instance_variable_set(variable, klass.find(id))
@@ -52,7 +53,7 @@ module TheSortableTreeController
         variable.move_to_left_of klass.find(next_id)
       end
 
-      render(:nothing => true)
+      render(nothing: true, status: :ok)
     end
   end
   
@@ -65,7 +66,7 @@ module TheSortableTreeController
       prev_id   = params[:prev_id].to_i
       next_id   = params[:next_id].to_i
 
-      render :text => "Do nothing" and return if parent_id.zero? && prev_id.zero? && next_id.zero?
+      return render(nothing: true, status: :no_content) if parent_id.zero? && prev_id.zero? && next_id.zero?
 
       variable, collection, klass = self.the_define_common_variables
       variable = self.instance_variable_set(variable, klass.find(id))
@@ -78,7 +79,7 @@ module TheSortableTreeController
         variable.move_to_right_of klass.find(next_id)
       end
 
-      render(:nothing => true)
+      render(nothing: true, status: :ok)
     end
   end
 end
