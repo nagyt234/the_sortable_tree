@@ -44,6 +44,8 @@ module TheSortableTreeController
 
       variable, collection, klass = self.the_define_common_variables
       variable = self.instance_variable_set(variable, klass.find(id))
+      
+      authorize variable, :rebuild?
 
       if prev_id.zero? && next_id.zero?
         variable.move_to_child_of klass.find(parent_id)
